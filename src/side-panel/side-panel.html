@@ -619,6 +619,28 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- 调试面板 -->
+  <div style="position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font-size:11px;padding:8px;max-height:200px;overflow-y:auto;display:none;" id="debugPanel">
+    <div style="margin-bottom:4px;font-weight:bold;">[DEBUG]</div>
+    <div id="debugContent"></div>
+  </div>
+  <button onclick="toggleDebug()" style="position:fixed;bottom:5px;right:5px;font-size:10px;padding:2px 6px;background:#333;color:#fff;border:none;border-radius:3px;cursor:pointer;">DEBUG</button>
+
   <script src="side-panel.js"></script>
+  <script>
+    function toggleDebug() {
+      const panel = document.getElementById('debugPanel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      if (panel.style.display === 'block') {
+        chrome.storage.local.get(null, items => {
+          document.getElementById('debugContent').innerHTML =
+            '<pre style="margin:0;white-space:pre-wrap;">' +
+            'FOLDERS: ' + JSON.stringify(items.promptmaster_folders, null, 2) + '\n\n' +
+            'HISTORY: ' + JSON.stringify(items.promptmaster_history?.slice(0,3), null, 2) +
+            '</pre>';
+        });
+      }
+    }
+  </script>
 </body>
 </html>

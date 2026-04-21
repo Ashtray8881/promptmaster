@@ -158,14 +158,13 @@ function updateCounts() {
 
 // 渲染文件夹列表
 function renderFolders() {
+  // 移除所有非系统文件夹（保留"全部"和"收藏"）
   const allItems = folderListEl.querySelectorAll('.folder-item[data-folder]:not([data-folder="all"]):not([data-folder="favorites"])');
   allItems.forEach(el => el.remove());
 
+  // 重新渲染所有文件夹
   state.folders.forEach(folder => {
     const count = state.prompts.filter(p => p.folderId === folder.id).length;
-    const existing = folderListEl.querySelector(`[data-folder="${folder.id}"]`);
-    if (existing) return;
-
     const item = document.createElement('div');
     item.className = 'folder-item';
     item.dataset.folder = folder.id;
@@ -625,19 +624,21 @@ async function addFolder() {
   console.log('[PromptMaster] addFolder called, name:', name);
 
   try {
-    const newFolder = await chrome.runtime.sendMessage({
+    const response = await chrome.runtime.sendMessage({
       type: 'ADD_FOLDER',
       payload: { name, parentId: null, icon: '📁', order: state.folders.length },
     });
 
-    console.log('[PromptMaster] addFolder response:', newFolder);
+    console.log('[PromptMaster] addFolder response:', JSON.stringify(response));
 
-    if (newFolder.success) {
-      state.folders.push(newFolder.data);
+    if (response && response.success) {
+      state.folders.push(response.data);
       renderFolders();
       showToast('文件夹已创建');
+      console.log('[PromptMaster] state.folders after push:', state.folders);
     } else {
-      showToast('创建失败');
+      console.error('[PromptMaster] addFolder failed:', response);
+      showToast('创建失败: ' + (response?.error || '未知错误'));
     }
   } catch (e) {
     console.error('[PromptMaster] addFolder error:', e);
