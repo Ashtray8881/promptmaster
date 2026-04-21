@@ -198,14 +198,16 @@ async function loadHistory() {
 function updateCounts() {
   const allCount = state.prompts.length;
   const favCount = state.prompts.filter(p => p.isFavorite).length;
+  const historyCount = state.prompts.filter(p => p.lastUsedAt !== null && p.lastUsedAt > 0).length;
   document.getElementById('allCount')!.textContent = String(allCount);
   document.getElementById('favCount')!.textContent = String(favCount);
+  document.getElementById('historyCount')!.textContent = String(historyCount);
 }
 
 // 渲染文件夹列表
 function renderFolders() {
-  // 移除所有非系统文件夹（保留"全部"和"收藏"）
-  const allItems = folderListEl.querySelectorAll('.folder-item[data-folder]:not([data-folder="all"]):not([data-folder="favorites"])');
+  // 移除所有非系统文件夹（保留"全部"、"历史"和"收藏"）
+  const allItems = folderListEl.querySelectorAll('.folder-item[data-folder]:not([data-folder="all"]):not([data-folder="history"]):not([data-folder="favorites"])');
   allItems.forEach(el => el.remove());
 
   // 重新渲染所有文件夹
@@ -267,6 +269,11 @@ function getFilteredPrompts(): Prompt[] {
 
   if (state.currentFolder === 'favorites') {
     filtered = filtered.filter(p => p.isFavorite);
+  } else if (state.currentFolder === 'history') {
+    // "历史"只显示使用过的提示词，按时间倒序
+    filtered = filtered
+      .filter(p => p.lastUsedAt !== null && p.lastUsedAt > 0)
+      .sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0));
   } else if (state.currentFolder === 'all') {
     // "全部"只显示未分类的提示词
     filtered = filtered.filter(p => p.folderId === null);
