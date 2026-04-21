@@ -571,6 +571,21 @@ async function copyToClipboard() {
     payload: { id: state.selectedPrompt.id, updates: { useCount: state.selectedPrompt!.useCount + 1, lastUsedAt: Date.now() } },
   });
 
+  // 保存到历史记录
+  const variables = state.selectedPrompt.templateType === 'image_generation'
+    ? dimensionState
+    : getVariableValues();
+
+  await chrome.runtime.sendMessage({
+    type: 'ADD_HISTORY',
+    payload: {
+      promptId: state.selectedPrompt.id,
+      site: '',
+      variables,
+      content,
+    },
+  });
+
   setTimeout(() => hideVariablePanel(), 500);
 }
 
@@ -607,15 +622,26 @@ async function addFolder() {
   const name = prompt('请输入文件夹名称：');
   if (!name) return;
 
-  const newFolder = await chrome.runtime.sendMessage({
-    type: 'ADD_FOLDER',
-    payload: { name, parentId: null, icon: '📁', order: state.folders.length },
-  });
+  console.log('[PromptMaster] addFolder called, name:', name);
 
-  if (newFolder.success) {
-    state.folders.push(newFolder.data);
-    renderFolders();
-    showToast('文件夹已创建');
+  try {
+    const newFolder = await chrome.runtime.sendMessage({
+      type: 'ADD_FOLDER',
+      payload: { name, parentId: null, icon: '📁', order: state.folders.length },
+    });
+
+    console.log('[PromptMaster] addFolder response:', newFolder);
+
+    if (newFolder.success) {
+      state.folders.push(newFolder.data);
+      renderFolders();
+      showToast('文件夹已创建');
+    } else {
+      showToast('创建失败');
+    }
+  } catch (e) {
+    console.error('[PromptMaster] addFolder error:', e);
+    showToast('创建失败: ' + String(e));
   }
 }
 

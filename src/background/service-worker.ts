@@ -96,9 +96,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'ADD_FOLDER') {
+    console.log('[PromptMaster] ADD_FOLDER received:', message.payload);
     const { name, parentId, icon, order } = message.payload;
     chrome.storage.local.get(STORAGE_KEYS.FOLDERS, (result) => {
       const folders: any[] = (result[STORAGE_KEYS.FOLDERS] as any[]) || [];
+      console.log('[PromptMaster] Current folders:', folders);
       const newFolder = {
         id: generateId(),
         name,
@@ -107,8 +109,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         order: order || folders.length,
       };
       folders.push(newFolder);
+      console.log('[PromptMaster] Folders after push:', folders);
       chrome.storage.local.set({ [STORAGE_KEYS.FOLDERS]: folders }, () => {
-        sendResponse({ success: true, data: newFolder });
+        console.log('[PromptMaster] Folders saved, verifying...');
+        // Verify by reading back
+        chrome.storage.local.get(STORAGE_KEYS.FOLDERS, (verifyResult) => {
+          console.log('[PromptMaster] Verified folders:', verifyResult);
+          sendResponse({ success: true, data: newFolder });
+        });
       });
     });
     return true;
@@ -145,6 +153,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const filtered = prompts.filter((p: any) => p.id !== id);
       chrome.storage.local.set({ [STORAGE_KEYS.PROMPTS]: filtered }, () => {
         sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'ADD_HISTORY') {
+    const { promptId, site, variables, content } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.HISTORY, (result) => {
+      const history: any[] = (result[STORAGE_KEYS.HISTORY] as any[]) || [];
+      const newEntry = {
+        id: generateId(),
+        promptId,
+        usedAt: Date.now(),
+        site: site || '',
+        variables: variables || {},
+        content: content || '',
+      };
+      history.unshift(newEntry); // 最新在前
+      // 保留最近100条
+      if (history.length > 100) {
+        history.splice(100);
+      }
+      chrome.storage.local.set({ [STORAGE_KEYS.HISTORY]: history }, () => {
+        sendResponse({ success: true, data: newEntry });
       });
     });
     return true;
