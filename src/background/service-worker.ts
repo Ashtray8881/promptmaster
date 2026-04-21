@@ -158,6 +158,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'UPDATE_FOLDER') {
+    const { id, updates } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.FOLDERS, (result) => {
+      const folders: any[] = (result[STORAGE_KEYS.FOLDERS] as any[]) || [];
+      const index = folders.findIndex((f: any) => f.id === id);
+      if (index !== -1) {
+        folders[index] = { ...folders[index], ...updates };
+        chrome.storage.local.set({ [STORAGE_KEYS.FOLDERS]: folders }, () => {
+          sendResponse({ success: true });
+        });
+      } else {
+        sendResponse({ success: false });
+      }
+    });
+    return true;
+  }
+
+  if (message.type === 'DELETE_FOLDER') {
+    const { id } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.FOLDERS, (result) => {
+      const folders: any[] = (result[STORAGE_KEYS.FOLDERS] as any[]) || [];
+      const filtered = folders.filter((f: any) => f.id !== id);
+      chrome.storage.local.set({ [STORAGE_KEYS.FOLDERS]: filtered }, () => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'UPDATE_PROMPTS_BATCH') {
+    const { payload } = message.payload; // payload 是数组
+    chrome.storage.local.get(STORAGE_KEYS.PROMPTS, (result) => {
+      const prompts: any[] = (result[STORAGE_KEYS.PROMPTS] as any[]) || [];
+      payload.forEach(({ id, updates }: { id: string; updates: any }) => {
+        const index = prompts.findIndex((p: any) => p.id === id);
+        if (index !== -1) {
+          prompts[index] = { ...prompts[index], ...updates };
+        }
+      });
+      chrome.storage.local.set({ [STORAGE_KEYS.PROMPTS]: prompts }, () => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+
   if (message.type === 'ADD_HISTORY') {
     const { promptId, site, variables, content } = message.payload;
     chrome.storage.local.get(STORAGE_KEYS.HISTORY, (result) => {

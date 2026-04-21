@@ -665,6 +665,12 @@
     <div class="ctx-item" data-action="delete" style="padding:8px 16px;cursor:pointer;font-size:13px;color:var(--warning);" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">🗑️ 删除</div>
   </div>
 
+  <!-- 文件夹右键菜单 -->
+  <div id="folderContextMenu" style="position:fixed;background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:6px 0;z-index:1000;display:none;min-width:140px;">
+    <div class="ctx-folder-item" data-action="rename" style="padding:8px 16px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">✏️ 重命名</div>
+    <div class="ctx-folder-item" data-action="delete" style="padding:8px 16px;cursor:pointer;font-size:13px;color:var(--warning);" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">🗑️ 删除</div>
+  </div>
+
   <!-- 移动到文件夹弹窗 -->
   <div id="moveModal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:20px;z-index:1001;display:none;min-width:240px;">
     <div style="font-weight:600;margin-bottom:12px;">移动到文件夹</div>

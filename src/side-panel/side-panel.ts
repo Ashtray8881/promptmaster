@@ -267,7 +267,10 @@ function getFilteredPrompts(): Prompt[] {
 
   if (state.currentFolder === 'favorites') {
     filtered = filtered.filter(p => p.isFavorite);
-  } else if (state.currentFolder !== 'all') {
+  } else if (state.currentFolder === 'all') {
+    // "全部"只显示未分类的提示词
+    filtered = filtered.filter(p => p.folderId === null);
+  } else {
     filtered = filtered.filter(p => p.folderId === state.currentFolder);
   }
 
@@ -795,6 +798,70 @@ function setupEventListeners() {
     state.selectedTags = [];
     renderSelectedTags();
     renderPrompts();
+  });
+
+  // 文件夹右键菜单
+  const folderContextMenu = document.getElementById('folderContextMenu')!;
+  let contextFolderId: string | null = null;
+
+  folderListEl.addEventListener('contextmenu', (e) => {
+    const item = (e.target as HTMLElement).closest('.folder-item') as HTMLElement;
+    if (!item || item.dataset.folder === 'all' || item.dataset.folder === 'favorites') return;
+    e.preventDefault();
+    contextFolderId = item.dataset.folder!;
+    folderContextMenu.style.left = (e as MouseEvent).pageX + 'px';
+    folderContextMenu.style.top = (e as MouseEvent).pageY + 'px';
+    folderContextMenu.style.display = 'block';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!folderContextMenu.contains(e.target as Node)) {
+      folderContextMenu.style.display = 'none';
+    }
+  });
+
+  folderContextMenu.addEventListener('click', async (e) => {
+    const action = (e.target as HTMLElement).dataset.action;
+    folderContextMenu.style.display = 'none';
+
+    if (!contextFolderId) return;
+    const folder = state.folders.find(f => f.id === contextFolderId);
+    if (!folder) return;
+
+    if (action === 'rename') {
+      const newName = prompt('输入新名称：', folder.name);
+      if (newName && newName !== folder.name) {
+        folder.name = newName;
+        await chrome.runtime.sendMessage({
+          type: 'UPDATE_FOLDER',
+          payload: { id: folder.id, updates: { name: newName } },
+        });
+        renderFolders();
+        showToast('已重命名');
+      }
+    } else if (action === 'delete') {
+      if (confirm(`删除文件夹 "${folder.name}"？\n提示：文件夹内的提示词将移至"全部"。`)) {
+        // 将文件夹内的提示词移至未分类
+        state.prompts.forEach(p => {
+          if (p.folderId === folder.id) p.folderId = null;
+        });
+        await chrome.runtime.sendMessage({
+          type: 'UPDATE_PROMPTS_BATCH',
+          payload: state.prompts.filter(p => p.folderId === null || p.folderId === folder.id).map(p => ({
+            id: p.id,
+            updates: { folderId: p.folderId },
+          })),
+        });
+        await chrome.runtime.sendMessage({
+          type: 'DELETE_FOLDER',
+          payload: { id: folder.id },
+        });
+        state.folders = state.folders.filter(f => f.id !== folder.id);
+        renderFolders();
+        renderPrompts();
+        showToast('已删除');
+      }
+    }
   });
 
   copyBtn.addEventListener('click', copyToClipboard);
