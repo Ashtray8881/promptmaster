@@ -101,6 +101,16 @@ const state: State = {
 
 let searchTimeout: ReturnType<typeof setTimeout>;
 
+// 历史记录
+interface HistoryEntry {
+  id: string;
+  promptId: string;
+  usedAt: number;
+  site: string;
+  variables: Record<string, string>;
+  content: string;
+}
+
 // DOM elements
 const folderListEl = document.getElementById('folderList')!;
 const promptListEl = document.getElementById('promptList')!;
@@ -116,11 +126,15 @@ const toastEl = document.getElementById('toast')!;
 const addFolderBtn = document.getElementById('addFolderBtn')!;
 const addFolderBtn2 = document.getElementById('addFolderBtn2')!;
 const addPromptBtn = document.getElementById('addPromptBtn')!;
+const historySection = document.getElementById('historySection')!;
+const historyList = document.getElementById('historyList')!;
+const toggleHistoryBtn = document.getElementById('toggleHistory')!;
 
 // 初始化
 async function init() {
   await loadData();
   await loadCustomTags();
+  await loadHistory();
   updateCounts();
   renderFolders();
   renderPrompts();
@@ -146,6 +160,38 @@ async function loadCustomTags() {
 // 保存自定义标签
 async function saveCustomTags() {
   await chrome.storage.local.set({ promptmaster_custom_tags: state.customTags });
+}
+
+// 加载历史记录
+async function loadHistory() {
+  const result = await chrome.storage.local.get('promptmaster_history');
+  const history: HistoryEntry[] = (result.promptmaster_history as HistoryEntry[]) || [];
+  if (history.length === 0) {
+    historySection.style.display = 'none';
+    return;
+  }
+  historySection.style.display = 'block';
+  historyList.innerHTML = history.slice(0, 10).map(h => {
+    const prompt = state.prompts.find(p => p.id === h.promptId);
+    const title = prompt ? prompt.title : '未知模板';
+    const time = new Date(h.usedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `
+      <div class="history-item" data-content="${encodeURIComponent(h.content)}">
+        <div class="history-item-title">${title}</div>
+        <div class="history-item-preview">${h.content.slice(0, 50)}${h.content.length > 50 ? '...' : ''}</div>
+        <div class="history-item-time">${time}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 点击历史项复制内容
+  historyList.querySelectorAll('.history-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const content = decodeURIComponent((item as HTMLElement).dataset.content || '');
+      await navigator.clipboard.writeText(content);
+      showToast('已复制');
+    });
+  });
 }
 
 // 更新计数
@@ -643,6 +689,9 @@ async function addFolder() {
       newFolderEl.textContent = `${response.data.icon || '📁'} ${response.data.name} ` + count;
       folderListEl.appendChild(newFolderEl);
 
+      // 自动滚动到底部显示新文件夹
+      folderListEl.scrollTop = folderListEl.scrollHeight;
+
       showToast('文件夹已创建');
     } else {
       console.error('[PromptMaster] addFolder failed:', response);
@@ -754,6 +803,93 @@ function setupEventListeners() {
   addFolderBtn.addEventListener('click', addFolder);
   addFolderBtn2.addEventListener('click', addFolder);
   addPromptBtn.addEventListener('click', addPrompt);
+
+  // 右键菜单
+  const contextMenu = document.getElementById('contextMenu')!;
+  const moveModal = document.getElementById('moveModal')!;
+  const moveFolderList = document.getElementById('moveFolderList')!;
+  const moveModalCancel = document.getElementById('moveModalCancel')!;
+  let contextPromptId: string | null = null;
+
+  // 提示词卡片右键
+  promptListEl.addEventListener('contextmenu', (e) => {
+    const card = (e.target as HTMLElement).closest('.prompt-card');
+    if (card) {
+      e.preventDefault();
+      contextPromptId = card.getAttribute('data-id');
+      contextMenu.style.left = (e as MouseEvent).pageX + 'px';
+      contextMenu.style.top = (e as MouseEvent).pageY + 'px';
+      contextMenu.style.display = 'block';
+    }
+  });
+
+  // 点击其他地方关闭右键菜单
+  document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target as Node)) {
+      contextMenu.style.display = 'none';
+    }
+  });
+
+  // 右键菜单项点击
+  contextMenu.addEventListener('click', async (e) => {
+    const action = (e.target as HTMLElement).dataset.action;
+    contextMenu.style.display = 'none';
+
+    if (!contextPromptId) return;
+    const prompt = state.prompts.find(p => p.id === contextPromptId);
+    if (!prompt) return;
+
+    if (action === 'delete') {
+      if (confirm(`删除 "${prompt.title}"？`)) {
+        await chrome.runtime.sendMessage({ type: 'DELETE_PROMPT', payload: { id: prompt.id } });
+        state.prompts = state.prompts.filter(p => p.id !== prompt.id);
+        updateCounts();
+        renderPrompts();
+        showToast('已删除');
+      }
+    } else if (action === 'favorite') {
+      await toggleFavorite(prompt.id);
+    } else if (action === 'move') {
+      // 显示移动弹窗
+      moveFolderList.innerHTML = state.folders.map(f => `
+        <div class="folder-move-item" data-folder="${f.id}" style="padding:8px;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">
+          ${f.icon || '📁'} ${f.name}
+        </div>
+      `).join('') || '<div style="padding:8px;color:var(--text-secondary);">暂无文件夹</div>';
+
+      moveFolderList.querySelectorAll('.folder-move-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const targetFolderId = (item as HTMLElement).dataset.folder!;
+          await chrome.runtime.sendMessage({
+            type: 'UPDATE_PROMPT',
+            payload: { id: prompt.id, updates: { folderId: targetFolderId } },
+          });
+          prompt.folderId = targetFolderId;
+          moveModal.style.display = 'none';
+          renderPrompts();
+          showToast('已移动');
+        });
+      });
+
+      moveModal.style.display = 'block';
+    }
+  });
+
+  // 关闭移动弹窗
+  moveModalCancel.addEventListener('click', () => {
+    moveModal.style.display = 'none';
+  });
+
+  // 切换历史记录显示
+  toggleHistoryBtn.addEventListener('click', () => {
+    if (historySection.style.display === 'none') {
+      historySection.style.display = 'block';
+      toggleHistoryBtn.textContent = '隐藏';
+    } else {
+      historySection.style.display = 'none';
+      toggleHistoryBtn.textContent = '显示';
+    }
+  });
 }
 
 init();

@@ -552,6 +552,35 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-placeholder); }
+
+    /* History */
+    .history-item {
+      padding: 6px 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.1s;
+    }
+    .history-item:hover {
+      background: var(--bg-hover);
+    }
+    .history-item-title {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .history-item-preview {
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-item-time {
+      font-size: 10px;
+      color: var(--text-placeholder);
+      margin-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -605,6 +634,15 @@
     </div>
   </div>
 
+  <!-- 历史记录区域 -->
+  <div class="history-section" id="historySection" style="flex-shrink:0;padding:8px 12px;border-top:1px solid var(--border-light);background:var(--bg-secondary);max-height:150px;overflow-y:auto;display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <span class="section-title">最近使用</span>
+      <button id="toggleHistory" style="font-size:11px;color:var(--text-secondary);background:none;border:none;cursor:pointer;">隐藏</button>
+    </div>
+    <div class="history-list" id="historyList" style="display:flex;flex-direction:column;gap:4px;"></div>
+  </div>
+
   <div class="variable-panel" id="variablePanel">
     <div class="variable-header">
       <span class="variable-title">填写变量</span>
@@ -618,6 +656,23 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- 右键菜单 -->
+  <div id="contextMenu" style="position:fixed;background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:6px 0;z-index:1000;display:none;min-width:160px;">
+    <div class="ctx-item" data-action="move" style="padding:8px 16px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">📁 移动到...</div>
+    <div class="ctx-item" data-action="favorite" style="padding:8px 16px;cursor:pointer;font-size:13px;" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">⭐ 收藏</div>
+    <div class="ctx-divider" style="height:1px;background:var(--border);margin:4px 0;"></div>
+    <div class="ctx-item" data-action="delete" style="padding:8px 16px;cursor:pointer;font-size:13px;color:var(--warning);" onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='transparent'">🗑️ 删除</div>
+  </div>
+
+  <!-- 移动到文件夹弹窗 -->
+  <div id="moveModal" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:20px;z-index:1001;display:none;min-width:240px;">
+    <div style="font-weight:600;margin-bottom:12px;">移动到文件夹</div>
+    <div id="moveFolderList" style="max-height:200px;overflow-y:auto;"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button id="moveModalCancel" style="flex:1;padding:8px;border:1px solid var(--border);background:transparent;border-radius:var(--radius-sm);cursor:pointer;">取消</button>
+    </div>
+  </div>
 
   <!-- 调试面板 -->
   <div style="position:fixed;bottom:0;left:0;right:0;background:#000;color:#0f0;font-size:11px;padding:8px;max-height:200px;overflow-y:auto;display:none;" id="debugPanel">
