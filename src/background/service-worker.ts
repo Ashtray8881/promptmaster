@@ -95,6 +95,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'ADD_FOLDER') {
+    const { name, parentId, icon, order } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.FOLDERS, (result) => {
+      const folders: any[] = (result[STORAGE_KEYS.FOLDERS] as any[]) || [];
+      const newFolder = {
+        id: generateId(),
+        name,
+        parentId: parentId || null,
+        icon: icon || '📁',
+        order: order || folders.length,
+      };
+      folders.push(newFolder);
+      chrome.storage.local.set({ [STORAGE_KEYS.FOLDERS]: folders }, () => {
+        sendResponse({ success: true, data: newFolder });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'ADD_PROMPT') {
+    const { title, content, tags, folderId } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.PROMPTS, (result) => {
+      const prompts: any[] = (result[STORAGE_KEYS.PROMPTS] as any[]) || [];
+      const newPrompt = {
+        id: generateId(),
+        title,
+        content: content || '',
+        folderId: folderId || null,
+        tags: tags || [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastUsedAt: null,
+        useCount: 0,
+        isFavorite: false,
+      };
+      prompts.push(newPrompt);
+      chrome.storage.local.set({ [STORAGE_KEYS.PROMPTS]: prompts }, () => {
+        sendResponse({ success: true, data: newPrompt });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'DELETE_PROMPT') {
+    const { id } = message.payload;
+    chrome.storage.local.get(STORAGE_KEYS.PROMPTS, (result) => {
+      const prompts: any[] = (result[STORAGE_KEYS.PROMPTS] as any[]) || [];
+      const filtered = prompts.filter((p: any) => p.id !== id);
+      chrome.storage.local.set({ [STORAGE_KEYS.PROMPTS]: filtered }, () => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+
   sendResponse({ success: false, error: 'Unknown message type' });
 });
 
