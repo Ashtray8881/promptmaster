@@ -1,0 +1,24 @@
+{
+  "name": "promptmaster",
+  "version": "1.0.0",
+  "description": "提示词模板管理插件",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --mode production && cp src/manifest.json dist/manifest.json",
+    "dev": "webpack --mode development && cp src/manifest.json dist/manifest.json",
+    "watch": "webpack --mode development --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/chrome": "^0.1.40",
+    "copy-webpack-plugin": "^14.0.0",
+    "html-webpack-plugin": "^5.6.7",
+    "ts-loader": "^9.5.7",
+    "typescript": "^6.0.3",
+    "webpack": "^5.106.2",
+    "webpack-cli": "^7.0.2"
+  }
+}

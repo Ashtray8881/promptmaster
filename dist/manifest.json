@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "PromptMaster",
+  "version": "1.0.0",
+  "description": "提示词模板管理插件，支持变量替换和自动填充",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://deepseek.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "side-panel/side-panel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://deepseek.com/*"
+      ],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_side_panel": "side-panel/side-panel.html"
+  }
+}
