@@ -633,9 +633,17 @@ async function addFolder() {
 
     if (response && response.success) {
       state.folders.push(response.data);
-      renderFolders();
-      showToast('文件夹已创建');
       console.log('[PromptMaster] state.folders after push:', state.folders);
+
+      // 直接在 DOM 中添加新文件夹（确保显示）
+      const count = 0;
+      const newFolderEl = document.createElement('div');
+      newFolderEl.className = 'folder-item';
+      newFolderEl.dataset.folder = response.data.id;
+      newFolderEl.textContent = `${response.data.icon || '📁'} ${response.data.name} ` + count;
+      folderListEl.appendChild(newFolderEl);
+
+      showToast('文件夹已创建');
     } else {
       console.error('[PromptMaster] addFolder failed:', response);
       showToast('创建失败: ' + (response?.error || '未知错误'));
