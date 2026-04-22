@@ -199,9 +199,7 @@
     <p style="font-size:12px;color:#999;margin-top:8px;">支持 PDF、PNG、JPG、JPEG，可一次选择多个文件</p>
   </div>
 
-  <div class="file-list" id="fileList">
-    <div class="empty-state" id="emptyState">还没有上传文件</div>
-  </div>
+  <div class="file-list" id="fileList"></div>
 
   <button class="btn-save" id="saveAllBtn" disabled>保存全部到文件夹</button>
 
@@ -293,13 +291,10 @@
 
     function updateUI() {
       const fileList = document.getElementById('fileList');
-      const emptyState = document.getElementById('emptyState');
       const saveBtn = document.getElementById('saveAllBtn');
 
       if (files.length === 0) {
-        fileList.innerHTML = '';
-        fileList.appendChild(emptyState);
-        emptyState.style.display = 'block';
+        fileList.innerHTML = '<div class="empty-state">还没有上传文件</div>';
         saveBtn.disabled = true;
         return;
       }
