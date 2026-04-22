@@ -143,13 +143,47 @@
       body { background: white; }
       .header, .upload-zone, .file-list, .btn-save, .btn-print, .crop-modal, .preview-modal { display: none !important; }
       .print-content { display: block !important; padding: 0 !important; }
+      /* 发票：3列竖排（每列3张） */
+      .print-page-invoice {
+        page-break-after: always;
+        display: flex;
+        flex-direction: row;
+        gap: 8mm;
+      }
+      .print-page-invoice .print-col {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6mm;
+      }
+      .print-page-invoice .print-item-invoice {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .print-page-invoice .print-item-invoice img {
+        width: 55mm;
+        height: auto;
+        max-height: 68mm;
+        object-fit: contain;
+      }
+      .print-page-invoice .print-item-invoice .print-item-name {
+        font-size: 8px;
+        color: #333;
+        text-align: center;
+        max-width: 55mm;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      /* 账单/截图：3列横排 */
       .print-page {
         page-break-after: always;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 15mm;
         padding: 0;
-        height: 257mm; /* A4高度减去上下边距 */
+        height: 257mm;
       }
       .print-page:last-child { page-break-after: avoid; }
       .print-item {
@@ -588,14 +622,49 @@
       const others = files.filter(f => f.type !== 'invoice');
       const grouped = [...invoices, ...others];
 
-      // 每页3张
+      // 发票：每页3列，每列3张（竖排三列）
+      // 格式：[col1: 0,3,6] [col2: 1,4,7] [col3: 2,5,8]
+      const invoicePerCol = 3;
+      const invoiceCols = 3;
+      const invoicePageSize = invoicePerCol * invoiceCols; // 9张/页
+
+      for (let pageStart = 0; pageStart < invoices.length; pageStart += invoicePageSize) {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'print-page print-page-invoice';
+
+        // 每页创建3列
+        for (let col = 0; col < invoiceCols; col++) {
+          const colDiv = document.createElement('div');
+          colDiv.className = 'print-col';
+
+          // 每列放3张（每隔invoiceCols取一张）
+          for (let row = 0; row < invoicePerCol; row++) {
+            const idx = pageStart + col + row * invoiceCols;
+            if (idx < invoices.length) {
+              const file = invoices[idx];
+              const itemDiv = document.createElement('div');
+              itemDiv.className = 'print-item print-item-invoice';
+              itemDiv.innerHTML = `
+                <img src="${file.previewUrl}" alt="${file.name}" style="transform:rotate(${file.rotation || 0}deg)">
+                <div class="print-item-name">${file.name}</div>
+              `;
+              colDiv.appendChild(itemDiv);
+            }
+          }
+          pageDiv.appendChild(colDiv);
+        }
+
+        printContent.appendChild(pageDiv);
+      }
+
+      // 账单/截图：每页3张，3列横排
       const itemsPerPage = 3;
-      for (let i = 0; i < grouped.length; i += itemsPerPage) {
+      for (let i = 0; i < others.length; i += itemsPerPage) {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'print-page';
 
-        for (let j = i; j < Math.min(i + itemsPerPage, grouped.length); j++) {
-          const file = grouped[j];
+        for (let j = i; j < Math.min(i + itemsPerPage, others.length); j++) {
+          const file = others[j];
           const itemDiv = document.createElement('div');
           itemDiv.className = 'print-item';
           itemDiv.innerHTML = `
