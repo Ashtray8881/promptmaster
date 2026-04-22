@@ -136,6 +136,41 @@
       padding: 60px 20px;
       color: #999;
     }
+    .file-preview {
+      cursor: zoom-in;
+    }
+    /* 图片预览放大 */
+    .preview-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .preview-modal.active { display: flex; }
+    .preview-image {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+    }
+    .preview-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 40px;
+      color: white;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .preview-close:hover { color: #ccc; }
+    .preview-info {
+      color: white;
+      margin-top: 16px;
+      font-size: 14px;
+    }
     @media (max-width: 768px) {
       .file-item {
         grid-template-columns: 60px 1fr;
@@ -161,7 +196,7 @@
   <div class="upload-zone" id="uploadZone">
     <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg">
     <p>点击或拖拽文件到这里上传</p>
-    <p style="font-size:12px;color:#999;margin-top:8px;">支持 PDF、PNG、JPG、JPEG</p>
+    <p style="font-size:12px;color:#999;margin-top:8px;">支持 PDF、PNG、JPG、JPEG，可一次选择多个文件</p>
   </div>
 
   <div class="file-list" id="fileList">
@@ -169,6 +204,13 @@
   </div>
 
   <button class="btn-save" id="saveAllBtn" disabled>保存全部到文件夹</button>
+
+  <!-- 图片预览放大 Modal -->
+  <div class="preview-modal" id="previewModal">
+    <span class="preview-close" id="previewClose">&times;</span>
+    <img class="preview-image" id="previewImage">
+    <div class="preview-info" id="previewInfo"></div>
+  </div>
 
   <div class="crop-modal" id="cropModal">
     <div class="crop-container">
@@ -286,7 +328,32 @@
       fileList.querySelectorAll('.file-name-input').forEach(input => {
         input.onchange = (e) => renameFile(parseInt(input.dataset.index), e.target.value);
       });
+      // 图片预览点击
+      fileList.querySelectorAll('.file-preview').forEach((img, i) => {
+        img.onclick = () => openPreview(i);
+      });
     }
+
+    // 图片预览功能
+    function openPreview(index) {
+      const file = files[index];
+      const modal = document.getElementById('previewModal');
+      const img = document.getElementById('previewImage');
+      const info = document.getElementById('previewInfo');
+      img.src = file.previewUrl;
+      info.textContent = `${file.name} (${file.type === 'invoice' ? '发票' : file.type === 'bill' ? '账单' : '截图'})`;
+      modal.classList.add('active');
+    }
+
+    document.getElementById('previewClose').onclick = () => {
+      document.getElementById('previewModal').classList.remove('active');
+    };
+
+    document.getElementById('previewModal').onclick = (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('active');
+      }
+    };
 
     function deleteFile(index) {
       const file = files[index];
