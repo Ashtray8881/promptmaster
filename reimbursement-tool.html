@@ -104,6 +104,8 @@
       font-size: 13px;
     }
     .btn-crop { background: #ff9800; color: white; }
+    .btn-rotate { background: #9c27b0; color: white; }
+    .btn-rotate:hover { background: #7b1fa2; }
     .btn-delete { background: #f44336; color: white; }
     .btn-save {
       width: 100%;
@@ -331,7 +333,8 @@
         name: file.name.replace(/\.[^.]+$/, ''),
         type,
         previewUrl,
-        croppedBlob: null
+        croppedBlob: null,
+        rotation: 0
       });
     }
 
@@ -363,10 +366,11 @@
 
       fileList.innerHTML = files.map((f, i) => `
         <div class="file-item" data-id="${f.id}">
-          <img class="file-preview" src="${f.previewUrl}" alt="preview">
+          <img class="file-preview" src="${f.previewUrl}" alt="preview" style="transform:rotate(${f.rotation || 0}deg)">
           <input type="text" class="file-name-input" value="${f.name}" data-index="${i}">
           <span class="file-type-badge ${f.type}">${f.type === 'invoice' ? '发票' : f.type === 'bill' ? '账单' : '截图'}</span>
           <div class="file-actions">
+            <button class="btn btn-rotate" data-index="${i}" title="旋转90度">旋转</button>
             ${f.type !== 'invoice' ? `<button class="btn btn-crop" data-index="${i}">裁剪</button>` : ''}
             <button class="btn btn-delete" data-index="${i}">删除</button>
           </div>
@@ -386,6 +390,16 @@
       fileList.querySelectorAll('.file-preview').forEach((img, i) => {
         img.onclick = () => openPreview(i);
       });
+      // 旋转按钮
+      fileList.querySelectorAll('.btn-rotate').forEach(btn => {
+        btn.onclick = () => rotateFile(parseInt(btn.dataset.index));
+      });
+    }
+
+    function rotateFile(index) {
+      const file = files[index];
+      file.rotation = ((file.rotation || 0) + 90) % 360;
+      updateUI();
     }
 
     // 图片预览功能
@@ -395,6 +409,7 @@
       const img = document.getElementById('previewImage');
       const info = document.getElementById('previewInfo');
       img.src = file.previewUrl;
+      img.style.transform = `rotate(${file.rotation || 0}deg)`;
       info.textContent = `${file.name} (${file.type === 'invoice' ? '发票' : file.type === 'bill' ? '账单' : '截图'})`;
       modal.classList.add('active');
     }
@@ -584,7 +599,7 @@
           const itemDiv = document.createElement('div');
           itemDiv.className = 'print-item';
           itemDiv.innerHTML = `
-            <img src="${file.previewUrl}" alt="${file.name}">
+            <img src="${file.previewUrl}" alt="${file.name}" style="transform:rotate(${file.rotation || 0}deg)">
             <div class="print-item-name">${file.name}</div>
           `;
           pageDiv.appendChild(itemDiv);
