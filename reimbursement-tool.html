@@ -155,6 +155,22 @@
         max-height: 180mm;
         object-fit: contain;
       }
+      .print-page-invoice {
+        display: block !important;
+      }
+      .print-page-invoice .print-item-invoice {
+        border: none;
+        padding: 20px;
+      }
+      .print-page-invoice .print-item-invoice img {
+        max-height: 240mm;
+        margin: 0 auto;
+      }
+      .print-page-invoice .print-item-invoice .print-item-name {
+        font-size: 14px;
+        margin-top: 8px;
+        text-align: center;
+      }
       .print-item-name {
         font-size: 11px;
         margin-top: 4px;
@@ -560,14 +576,32 @@
       const printContent = document.getElementById('printContent');
       printContent.innerHTML = '';
 
-      // 生成每页3张的布局
+      // 分离发票和非发票
+      const invoices = files.filter(f => f.type === 'invoice');
+      const others = files.filter(f => f.type !== 'invoice');
+
+      // 发票：每页1张，大图
+      invoices.forEach(file => {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'print-page print-page-invoice';
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'print-item print-item-invoice';
+        itemDiv.innerHTML = `
+          <img src="${file.previewUrl}" alt="${file.name}">
+          <div class="print-item-name">${file.name}</div>
+        `;
+        pageDiv.appendChild(itemDiv);
+        printContent.appendChild(pageDiv);
+      });
+
+      // 非发票（账单/截图）：每页3张
       const itemsPerPage = 3;
-      for (let i = 0; i < files.length; i += itemsPerPage) {
+      for (let i = 0; i < others.length; i += itemsPerPage) {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'print-page';
 
-        for (let j = i; j < Math.min(i + itemsPerPage, files.length); j++) {
-          const file = files[j];
+        for (let j = i; j < Math.min(i + itemsPerPage, others.length); j++) {
+          const file = others[j];
           const itemDiv = document.createElement('div');
           itemDiv.className = 'print-item';
           itemDiv.innerHTML = `
