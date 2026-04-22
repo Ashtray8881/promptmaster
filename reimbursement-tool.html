@@ -278,7 +278,8 @@
     }
 
     async function handleFiles(fileList) {
-      for (const file of fileList) {
+      const fileArray = Array.from(fileList);
+      for (const file of fileArray) {
         try {
           await addFile(file);
         } catch (err) {
