@@ -118,6 +118,52 @@
     }
     .btn-save:hover { background: #45a049; }
     .btn-save:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-print {
+      width: 100%;
+      padding: 14px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+    .btn-print:hover { background: #f57c00; }
+    .btn-print:disabled { background: #ccc; cursor: not-allowed; }
+    .print-content { display: none; }
+    /* 打印样式 */
+    @media print {
+      body { background: white; }
+      .header, .upload-zone, .file-list, .btn-save, .btn-print, .crop-modal, .preview-modal { display: none !important; }
+      .print-content { display: block !important; }
+      .print-page {
+        page-break-after: always;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 10px;
+      }
+      .print-page:last-child { page-break-after: avoid; }
+      .print-item {
+        text-align: center;
+        border: 1px solid #ddd;
+        padding: 5px;
+      }
+      .print-item img {
+        max-width: 100%;
+        max-height: 180mm;
+        object-fit: contain;
+      }
+      .print-item-name {
+        font-size: 11px;
+        margin-top: 4px;
+        color: #333;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
     .crop-modal {
       display: none;
       position: fixed;
@@ -202,6 +248,10 @@
   <div class="file-list" id="fileList"></div>
 
   <button class="btn-save" id="saveAllBtn" disabled>保存全部到文件夹</button>
+  <button class="btn-print" id="printBtn" disabled>打印（每页3张）</button>
+
+  <!-- 打印专用内容（隐藏） -->
+  <div id="printContent" class="print-content"></div>
 
   <!-- 图片预览放大 Modal -->
   <div class="preview-modal" id="previewModal">
@@ -301,6 +351,7 @@
       }
 
       saveBtn.disabled = !selectedFolderHandle;
+      document.getElementById('printBtn').disabled = files.length === 0;
 
       fileList.innerHTML = files.map((f, i) => `
         <div class="file-item" data-id="${f.id}">
@@ -497,6 +548,39 @@
         saveBtn.textContent = '保存全部到文件夹';
         updateUI();
       }
+    };
+
+    // 打印功能
+    document.getElementById('printBtn').onclick = async () => {
+      if (files.length === 0) {
+        alert('没有可打印的文件');
+        return;
+      }
+
+      const printContent = document.getElementById('printContent');
+      printContent.innerHTML = '';
+
+      // 生成每页3张的布局
+      const itemsPerPage = 3;
+      for (let i = 0; i < files.length; i += itemsPerPage) {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'print-page';
+
+        for (let j = i; j < Math.min(i + itemsPerPage, files.length); j++) {
+          const file = files[j];
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'print-item';
+          itemDiv.innerHTML = `
+            <img src="${file.previewUrl}" alt="${file.name}">
+            <div class="print-item-name">${file.name}</div>
+          `;
+          pageDiv.appendChild(itemDiv);
+        }
+
+        printContent.appendChild(pageDiv);
+      }
+
+      window.print();
     };
 
     async function saveFile(file) {
