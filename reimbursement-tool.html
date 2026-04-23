@@ -55,6 +55,12 @@
       border-color: #007AFF;
     }
     .upload-zone input { display: none; }
+    .upload-loading {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
     .file-list {
       background: white;
       border-radius: 8px;
@@ -63,11 +69,25 @@
     }
     .file-item {
       display: grid;
-      grid-template-columns: 30px 80px 1fr 100px 120px;
+      grid-template-columns: 30px 90px 1fr 100px 120px;
       gap: 12px;
       align-items: center;
       padding: 12px 16px;
       border-bottom: 1px solid #eee;
+    }
+    .preview-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    .rotation-badge {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
     }
     .file-item:last-child { border-bottom: none; }
     .file-preview {
@@ -243,6 +263,12 @@
       outline: 2px solid #ff9800;
       border-radius: 4px;
     }
+    .file-item[draggable="true"] {
+      cursor: grab;
+    }
+    .file-item:active {
+      cursor: grabbing;
+    }
     /* 图片预览放大 */
     .preview-modal {
       display: none;
@@ -303,7 +329,12 @@
     <p style="font-size:12px;color:#999;margin-top:8px;">支持 PDF、PNG、JPG、JPEG，可一次选择多个文件</p>
   </div>
 
-  <div class="file-list" id="fileList"></div>
+  <!-- 上传加载状态 -->
+  <div class="upload-loading" id="uploadLoading" style="display:none;text-align:center;padding:20px;color:#666;">
+    <span>处理中...</span>
+  </div>
+
+  <div class="file-list" id="fileList" class="sortable"></div>
 
   <div class="batch-actions" id="batchActions" style="display:none;margin-top:12px;gap:12px;">
     <button class="btn btn-delete-batch" id="deleteSelectedBtn">删除选中 (<span id="selectedCount">0</span>)</button>
@@ -357,6 +388,7 @@
       return 'bill';
     }
 
+    // PDF 转为图片 URL
     async function pdfToImageUrl(file) {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -368,6 +400,22 @@
       canvas.height = viewport.height;
       await page.render({ canvasContext: context, viewport: viewport }).promise;
       return canvas.toDataURL('image/png');
+    }
+
+    // PDF 转为 Blob（用于保存）
+    async function pdfToBlob(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 2.0 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({
+        canvasContext: canvas.getContext('2d'),
+        viewport: viewport
+      }).promise;
+      return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     }
 
     async function addFile(file) {
@@ -394,14 +442,35 @@
 
     async function handleFiles(fileList) {
       const fileArray = Array.from(fileList);
+      const loading = document.getElementById('uploadLoading');
+      const total = fileArray.length;
+      let processed = 0;
+
+      loading.style.display = 'block';
+      loading.innerHTML = `<span>处理中... (0/${total})</span>`;
+
       for (const file of fileArray) {
         try {
+          // 文件大小校验（50MB）
+          if (file.size > 50 * 1024 * 1024) {
+            alert(`文件 "${file.name}" 超过50MB限制`);
+            continue;
+          }
+          // 文件类型校验
+          const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+          if (!validTypes.includes(file.type)) {
+            alert(`文件 "${file.name}" 格式不支持`);
+            continue;
+          }
           await addFile(file);
         } catch (err) {
           console.error('处理文件失败:', file.name, err);
           alert(`处理文件 "${file.name}" 失败: ${err.message}`);
         }
+        processed++;
+        loading.innerHTML = `<span>处理中... (${processed}/${total})</span>`;
       }
+      loading.style.display = 'none';
       updateUI();
     }
 
@@ -429,9 +498,12 @@
       }
 
       fileList.innerHTML = files.map((f, i) => `
-        <div class="file-item ${selectedFiles.has(i) ? 'selected' : ''}" data-id="${f.id}">
+        <div class="file-item ${selectedFiles.has(i) ? 'selected' : ''}" data-id="${f.id}" data-index="${i}" draggable="true">
           <input type="checkbox" class="file-checkbox" data-index="${i}" ${selectedFiles.has(i) ? 'checked' : ''}>
-          <img class="file-preview" src="${f.previewUrl}" alt="preview" style="transform:rotate(${f.rotation || 0}deg)">
+          <div class="preview-wrapper">
+            <img class="file-preview" src="${f.previewUrl}" alt="preview" style="transform:rotate(${f.rotation || 0}deg)">
+            ${f.rotation ? `<span class="rotation-badge">${f.rotation}°</span>` : ''}
+          </div>
           <input type="text" class="file-name-input" value="${f.name}" data-index="${i}">
           <span class="file-type-badge ${f.type}">${f.type === 'invoice' ? '发票' : f.type === 'bill' ? '账单' : '截图'}</span>
           <div class="file-actions">
@@ -469,6 +541,37 @@
             selectedFiles.delete(idx);
           }
           updateUI();
+        };
+      });
+
+      // 拖拽排序
+      let draggedIndex = null;
+      fileList.querySelectorAll('.file-item').forEach(item => {
+        item.ondragstart = (e) => {
+          draggedIndex = parseInt(e.currentTarget.dataset.index);
+          e.currentTarget.style.opacity = '0.5';
+        };
+        item.ondragend = (e) => {
+          e.currentTarget.style.opacity = '1';
+          draggedIndex = null;
+        };
+        item.ondragover = (e) => {
+          e.preventDefault();
+        };
+        item.ondrop = (e) => {
+          e.preventDefault();
+          if (draggedIndex === null) return;
+          const dropIndex = parseInt(e.currentTarget.dataset.index);
+          if (draggedIndex !== dropIndex) {
+            const draggedFile = files[draggedIndex];
+            files.splice(draggedIndex, 1);
+            files.splice(dropIndex, 0, draggedFile);
+            // 清除选中并重新选中移动后的项
+            const newIndex = files.findIndex(f => f.id === draggedFile.id);
+            selectedFiles.clear();
+            selectedFiles.add(newIndex);
+            updateUI();
+          }
         };
       });
     }
@@ -638,7 +741,7 @@
         }
         file.previewUrl = url;
         file.croppedBlob = blob;
-        file.name = file.name + '_cropped';
+        // 不自动改名，让用户自己改
 
         closeCropModal();
         updateUI();
@@ -734,18 +837,7 @@
       let finalName;
 
       if (file.file.type === 'application/pdf') {
-        const arrayBuffer = await file.file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({
-          canvasContext: canvas.getContext('2d'),
-          viewport: viewport
-        }).promise;
-        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        blob = await pdfToBlob(file.file);
         finalName = file.name + '.png';
       } else if (file.croppedBlob) {
         blob = file.croppedBlob;
@@ -770,6 +862,41 @@
         </div>
       `;
     }
+
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      // Space: 预览当前焦点文件或第一个文件
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+        e.preventDefault();
+        if (files.length > 0) {
+          openPreview(0);
+        }
+      }
+      // R: 旋转当前焦点文件
+      if (e.code === 'KeyR' && e.target.tagName !== 'INPUT') {
+        e.preventDefault();
+        if (files.length > 0) {
+          rotateFile(0);
+        }
+      }
+      // Delete/Backspace: 删除当前焦点文件（需选中才能删）
+      if ((e.code === 'Delete' || e.code === 'Backspace') && e.target.tagName !== 'INPUT') {
+        if (selectedFiles.size > 0) {
+          e.preventDefault();
+          document.getElementById('deleteSelectedBtn').click();
+        }
+      }
+      // Escape: 关闭预览或取消选择
+      if (e.code === 'Escape') {
+        const previewModal = document.getElementById('previewModal');
+        if (previewModal.classList.contains('active')) {
+          previewModal.classList.remove('active');
+        } else if (selectedFiles.size > 0) {
+          selectedFiles.clear();
+          updateUI();
+        }
+      }
+    });
 
     // 初始化
     updateUI();
