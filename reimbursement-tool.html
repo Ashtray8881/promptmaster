@@ -63,7 +63,7 @@
     }
     .file-item {
       display: grid;
-      grid-template-columns: 80px 1fr 100px 120px;
+      grid-template-columns: 30px 80px 1fr 100px 120px;
       gap: 12px;
       align-items: center;
       padding: 12px 16px;
@@ -133,6 +133,13 @@
     }
     .btn-print:hover { background: #f57c00; }
     .btn-print:disabled { background: #ccc; cursor: not-allowed; }
+    .batch-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .btn-delete-batch { background: #f44336; color: white; }
+    .btn-delete-batch:hover { background: #d32f2f; }
     .print-content { display: none; }
     /* 打印样式 */
     @media print {
@@ -224,6 +231,18 @@
     .file-preview {
       cursor: zoom-in;
     }
+    .file-checkbox {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    .file-item.selected {
+      background: #fff3e0;
+    }
+    .file-item.selected .file-preview {
+      outline: 2px solid #ff9800;
+      border-radius: 4px;
+    }
     /* 图片预览放大 */
     .preview-modal {
       display: none;
@@ -286,6 +305,11 @@
 
   <div class="file-list" id="fileList"></div>
 
+  <div class="batch-actions" id="batchActions" style="display:none;margin-top:12px;gap:12px;">
+    <button class="btn btn-delete-batch" id="deleteSelectedBtn">删除选中 (<span id="selectedCount">0</span>)</button>
+    <button class="btn" style="background:#ccc;" id="clearSelectionBtn">取消选择</button>
+  </div>
+
   <button class="btn-save" id="saveAllBtn" disabled>保存全部到文件夹</button>
   <button class="btn-print" id="printBtn" disabled>打印（每页3张）</button>
 
@@ -318,6 +342,7 @@
     // 文件状态管理
     let selectedFolderHandle = null;
     const files = [];
+    const selectedFiles = new Set();
 
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -393,8 +418,19 @@
       saveBtn.disabled = !selectedFolderHandle;
       document.getElementById('printBtn').disabled = files.length === 0;
 
+      // 更新批量操作栏
+      const batchActions = document.getElementById('batchActions');
+      const selectedCount = document.getElementById('selectedCount');
+      if (selectedFiles.size > 0) {
+        batchActions.style.display = 'flex';
+        selectedCount.textContent = selectedFiles.size;
+      } else {
+        batchActions.style.display = 'none';
+      }
+
       fileList.innerHTML = files.map((f, i) => `
-        <div class="file-item" data-id="${f.id}">
+        <div class="file-item ${selectedFiles.has(i) ? 'selected' : ''}" data-id="${f.id}">
+          <input type="checkbox" class="file-checkbox" data-index="${i}" ${selectedFiles.has(i) ? 'checked' : ''}>
           <img class="file-preview" src="${f.previewUrl}" alt="preview" style="transform:rotate(${f.rotation || 0}deg)">
           <input type="text" class="file-name-input" value="${f.name}" data-index="${i}">
           <span class="file-type-badge ${f.type}">${f.type === 'invoice' ? '发票' : f.type === 'bill' ? '账单' : '截图'}</span>
@@ -423,7 +459,40 @@
       fileList.querySelectorAll('.btn-rotate').forEach(btn => {
         btn.onclick = () => rotateFile(parseInt(btn.dataset.index));
       });
+      // 复选框
+      fileList.querySelectorAll('.file-checkbox').forEach(cb => {
+        cb.onchange = (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          if (e.target.checked) {
+            selectedFiles.add(idx);
+          } else {
+            selectedFiles.delete(idx);
+          }
+          updateUI();
+        };
+      });
     }
+
+    // 批量删除选中项
+    document.getElementById('deleteSelectedBtn').onclick = () => {
+      if (selectedFiles.size === 0) return;
+      const indices = Array.from(selectedFiles).sort((a, b) => b - a); // 降序，删后面不影响前面
+      indices.forEach(idx => {
+        const file = files[idx];
+        if (file.previewUrl && file.previewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(file.previewUrl);
+        }
+        files.splice(idx, 1);
+      });
+      selectedFiles.clear();
+      updateUI();
+    };
+
+    // 取消选择
+    document.getElementById('clearSelectionBtn').onclick = () => {
+      selectedFiles.clear();
+      updateUI();
+    };
 
     function rotateFile(index) {
       const file = files[index];
