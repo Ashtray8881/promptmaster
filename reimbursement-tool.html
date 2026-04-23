@@ -148,24 +148,25 @@
         page-break-after: always;
         display: flex;
         flex-direction: column;
-        gap: 6mm;
+        gap: 5mm;
       }
       .print-page-invoice .print-item-invoice {
         display: flex;
         flex-direction: column;
         align-items: center;
+        page-break-inside: avoid;
       }
       .print-page-invoice .print-item-invoice img {
-        width: 170mm;
-        height: 85mm;
+        width: 90mm;
+        height: 180mm;
         object-fit: contain;
       }
       .print-page-invoice .print-item-invoice .print-item-name {
-        font-size: 10px;
+        font-size: 9px;
         color: #333;
         text-align: center;
         margin-top: 2mm;
-        max-width: 170mm;
+        max-width: 90mm;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
