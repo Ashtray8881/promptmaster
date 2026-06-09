@@ -201,12 +201,14 @@
         max-width: 90mm;
         text-align: center;
       }
-      /* 发票：单列3行垂直排列（放在后面以覆盖上面的grid） */
+      /* 发票：单列4行垂直排列（放在后面以覆盖上面的grid） */
       .print-page-invoice {
         display: flex !important;
         flex-direction: column !important;
         page-break-after: always;
         gap: 4mm;
+        justify-content: flex-start;
+        padding-top: 5mm;
       }
       .print-page-invoice .print-item-invoice {
         display: flex;
@@ -215,8 +217,8 @@
         page-break-inside: avoid;
       }
       .print-page-invoice .print-item-invoice img {
-        width: 180mm;
-        height: 85mm;
+        width: 190mm;
+        height: 71mm;
         object-fit: contain;
       }
       .print-page-invoice .print-item-invoice .print-item-name {
@@ -337,12 +339,13 @@
   <div class="file-list" id="fileList" class="sortable"></div>
 
   <div class="batch-actions" id="batchActions" style="display:none;margin-top:12px;gap:12px;">
+    <button class="btn" style="background:#007AFF;color:white;" id="selectAllBtn">全选</button>
     <button class="btn btn-delete-batch" id="deleteSelectedBtn">删除选中 (<span id="selectedCount">0</span>)</button>
     <button class="btn" style="background:#ccc;" id="clearSelectionBtn">取消选择</button>
   </div>
 
   <button class="btn-save" id="saveAllBtn" disabled>保存全部到文件夹</button>
-  <button class="btn-print" id="printBtn" disabled>打印（每页3张）</button>
+  <button class="btn-print" id="printBtn" disabled>打印（每页4张）</button>
 
   <!-- 打印专用内容（隐藏） -->
   <div id="printContent" class="print-content"></div>
@@ -597,6 +600,12 @@
       updateUI();
     };
 
+    // 全选
+    document.getElementById('selectAllBtn').onclick = () => {
+      files.forEach((_, i) => selectedFiles.add(i));
+      updateUI();
+    };
+
     function rotateFile(index) {
       const file = files[index];
       file.rotation = ((file.rotation || 0) + 90) % 360;
@@ -789,8 +798,8 @@
       const others = files.filter(f => f.type !== 'invoice');
       const grouped = [...invoices, ...others];
 
-      // 发票：每页单列3张，从上到下垂直排列
-      const invoicePerPage = 3;
+      // 发票：每页单列4张，从上到下垂直排列
+      const invoicePerPage = 4;
       for (let i = 0; i < invoices.length; i += invoicePerPage) {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'print-page print-page-invoice';

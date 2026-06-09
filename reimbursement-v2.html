@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>报销单据整理工具</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Premium Dark Financial Palette */
+      --bg-primary: #08080B;
+      --bg-secondary: #0F0F14;
+      --bg-tertiary: #16161D;
+      --bg-elevated: #1C1C25;
+      --surface: #22222E;
+      --surface-hover: #2A2A38;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-active: rgba(255, 255, 255, 0.12);
+      --text-primary: #F4F4F5;
+      --text-secondary: #A1A1AA;
+      --text-muted: #71717A;
+      --accent: #F59E0B;
+      --accent-hover: #FBBF24;
+      --accent-dim: rgba(245, 158, 11, 0.12);
+      --accent-glow: rgba(245, 158, 11, 0.25);
+      --danger: #EF4444;
+      --danger-dim: rgba(239, 68, 68, 0.15);
+      --success: #10B981;
+      --selection: #3B82F6;
+      --canvas-bg: #0A0A0F;
+      --grid-line: rgba(255, 255, 255, 0.03);
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+      --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 20px var(--accent-glow);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Noise Texture Overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      opacity: 0.02;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Header Toolbar */
+    .toolbar {
+      height: 56px;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      position: relative;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .toolbar::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+    }
+
+    .toolbar-brand {
+      font-family: 'Sora', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar-brand span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+    }
+
+    .btn {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-toolbar {
+      background: var(--surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-toolbar:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+      border-color: var(--border-active);
+      transform: translateY(-1px);
+    }
+
+    .btn-toolbar.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #E09000 100%);
+      color: #000;
+      font-weight: 600;
+      box-shadow: var(--shadow-md), 0 0 0 0 var(--accent-glow);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent) 100%);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-lg), 0 0 20px var(--accent-glow);
+    }
+
+    .btn-primary:disabled {
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .ml-auto { margin-left: auto; }
+
+    /* Main Layout */
+    .workspace {
+      display: grid;
+      grid-template-columns: 300px 1fr 220px;
+      height: calc(100vh - 56px);
+    }
+
+    /* Left Sidebar - File List */
+    .sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-tertiary);
+    }
+
+    .sidebar-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-count {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .upload-zone {
+      margin: 16px;
+      padding: 28px 16px;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent-dim) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      transform: scale(1.01);
+    }
+
+    .upload-zone:hover::before, .upload-zone.dragover::before {
+      opacity: 1;
+    }
+
+    .upload-zone input { display: none; }
+
+    .upload-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+      filter: grayscale(0.5);
+      transition: filter 0.3s, transform 0.3s;
+    }
+
+    .upload-zone:hover .upload-icon {
+      filter: grayscale(0);
+      transform: scale(1.1);
+    }
+
+    .upload-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      position: relative;
+    }
+
+    .upload-text small {
+      display: block;
+      font-size: 11px;
+      margin-top: 4px;
+      color: var(--text-muted);
+    }
+
+    .file-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .file-item {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 10px;
+      cursor: grab;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid transparent;
+      margin-bottom: 4px;
+      background: var(--bg-tertiary);
+    }
+
+    .file-item:hover {
+      background: var(--surface);
+      border-color: var(--border-active);
+      transform: translateX(2px);
+    }
+
+    .file-item.dragging {
+      opacity: 0.5;
+      border-color: var(--accent);
+      transform: scale(0.98);
+    }
+
+    .file-item.on-canvas {
+      opacity: 0.5;
+      background: var(--accent-dim);
+      border-color: rgba(245, 158, 11, 0.2);
+    }
+
+    .file-thumb {
+      width: 52px;
+      height: 40px;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: zoom-in;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .file-thumb:hover {
+      border-color: var(--accent);
+      transform: scale(1.05);
+    }
+
+    .file-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .file-info {
+      min-width: 0;
+    }
+
+    .file-name-input {
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .file-name-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--bg-secondary);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .file-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      transition: all 0.2s;
+      backdrop-filter: blur(4px);
+    }
+
+    .btn-icon.rotate {
+      background: rgba(139, 92, 246, 0.15);
+      color: #A78BFA;
+    }
+
+    .btn-icon.rotate:hover {
+      background: rgba(139, 92, 246, 0.25);
+      transform: rotate(15deg);
+    }
+
+    .btn-icon.crop {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+    }
+
+    .btn-icon.crop:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-icon.delete {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .btn-icon.delete:hover {
+      background: rgba(239, 68, 68, 0.25);
+      transform: scale(1.1);
+    }
+
+    /* Canvas Area */
+    .canvas-area {
+      background: var(--canvas-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Subtle Dot Grid */
+    .canvas-area::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .page-tab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-tab:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .page-tab.active {
+      background: linear-gradient(135deg, var(--accent) 0%, #E09000 100%);
+      border-color: var(--accent);
+      color: #000;
+      font-weight: 600;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .page-tab-add {
+      padding: 8px 14px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .page-tab-add:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .page-tab-delete {
+      width: 16px;
+      height: 16px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 4px;
+      opacity: 0;
+      transition: all 0.15s;
+    }
+
+    .page-tab:hover .page-tab-delete {
+      opacity: 1;
+    }
+
+    .page-tab-delete:hover {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .canvas-container {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      padding: 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* A4 Page Canvas */
+    .page-canvas {
+      width: 210mm;
+      height: 297mm;
+      background: #FFFFFF;
+      box-shadow: var(--shadow-lg), 0 0 60px rgba(0,0,0,0.3);
+      position: relative;
+      transform-origin: top center;
+      flex-shrink: 0;
+      border-radius: 4px;
+    }
+
+    /* Canvas Elements */
+    .canvas-element {
+      position: absolute;
+      border: 2px solid transparent;
+      box-sizing: border-box;
+      cursor: move;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      border-radius: 3px;
+    }
+
+    .canvas-element:hover {
+      border-color: var(--selection);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .canvas-element.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .canvas-element img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      background: #FAFAFA;
+    }
+
+    .element-name {
+      position: absolute;
+      bottom: -22px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .element-delete {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      width: 22px;
+      height: 22px;
+      background: var(--danger);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      border: 2px solid var(--bg-primary);
+    }
+
+    .canvas-element:hover .element-delete,
+    .canvas-element.selected .element-delete {
+      display: flex;
+    }
+
+    .rotate-handle {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 26px;
+      height: 26px;
+      background: var(--selection);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      cursor: grab;
+      box-shadow: var(--shadow-md);
+      border: 2px solid var(--bg-primary);
+    }
+
+    .canvas-element:hover .rotate-handle,
+    .canvas-element.selected .rotate-handle {
+      display: flex;
+    }
+
+    .resize-handle {
+      position: absolute;
+      bottom: -8px;
+      right: -8px;
+      width: 22px;
+      height: 22px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-size: 12px;
+      cursor: se-resize;
+      box-shadow: var(--shadow-md);
+      border: 2px solid var(--bg-primary);
+    }
+
+    .canvas-element:hover .resize-handle,
+    .canvas-element.selected .resize-handle {
+      display: flex;
+    }
+
+    /* Right Panel - Page Preview */
+    .preview-panel {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .preview-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preview-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-zoom {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .preview-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .preview-page {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      background: var(--bg-tertiary);
+      position: relative;
+    }
+
+    .preview-page:hover {
+      border-color: var(--accent);
+      transform: scale(1.02);
+    }
+
+    .preview-page.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow), var(--shadow-glow);
+    }
+
+    .preview-canvas {
+      width: 160px;
+      height: 226px;
+      background: white;
+      position: relative;
+      box-shadow: var(--shadow-md);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .preview-canvas img {
+      position: absolute;
+      object-fit: contain;
+    }
+
+    .preview-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 6px;
+      background: var(--bg-tertiary);
+    }
+
+    .preview-page.active .preview-label {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .preview-empty {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 8px;
+      color: #ccc;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    /* Crop Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 90vw;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-active);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-family: 'Sora', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--surface);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--danger-dim);
+      color: var(--danger);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+
+    .modal-btn-cancel {
+      background: var(--surface);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .modal-btn-cancel:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    #cropImageContainer {
+      max-height: 55vh;
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--bg-primary);
+    }
+
+    #cropImageContainer img {
+      max-width: 100%;
+      max-height: 55vh;
+      object-fit: contain;
+    }
+
+    /* Print Styles */
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      body {
+        background: white;
+      }
+      .toolbar, .sidebar, .preview-panel, .page-tabs {
+        display: none !important;
+      }
+      .workspace {
+        display: block;
+      }
+      .canvas-area {
+        background: white;
+      }
+      .canvas-container {
+        padding: 0;
+        overflow: visible;
+      }
+      .page-canvas {
+        box-shadow: none;
+        width: 210mm;
+        height: 297mm;
+      }
+      .canvas-element {
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .element-name, .element-delete, .rotate-handle {
+        display: none !important;
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--surface-hover); }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .file-item {
+      animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .canvas-element {
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .canvas-element.selected {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Premium Focus States */
+    *:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Selection Color */
+    ::selection {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-brand">报销单据整理工具</div>
+
+    <div class="toolbar-divider"></div>
+
+    <button class="btn btn-toolbar" id="addPageBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      添加页面
+    </button>
+    <button class="btn btn-toolbar" id="printBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      打印
+    </button>
+
+    <div class="ml-auto">
+      <button class="btn btn-primary" id="saveBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        保存全部
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">
+          文件列表
+          <span class="file-count" id="fileCount">0</span>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" multiple accept=".pdf,.png,.jpg,.jpeg">
+        <div class="upload-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="upload-text">
+          拖拽文件到这里
+          <small>支持 PDF、PNG、JPG</small>
+        </div>
+      </div>
+
+      <div class="file-list" id="fileList">
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div>暂无文件</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas Area -->
+    <div class="canvas-area">
+      <div class="page-tabs" id="pageTabs">
+        <div class="page-tab active" data-page="1">第 1 页</div>
+        <div class="page-tab-add" id="addPageTabBtn">+ 添加</div>
+      </div>
+      <div class="canvas-container" id="canvasContainer">
+        <div class="page-canvas" id="pageCanvas_1" data-page="1"></div>
+      </div>
+    </div>
+
+    <!-- Right Preview Panel -->
+    <div class="preview-panel">
+      <div class="preview-header">
+        <div class="preview-title">页面预览</div>
+      </div>
+      <div class="preview-list" id="previewList"></div>
+    </div>
+  </div>
+
+  <!-- File Preview Modal -->
+  <div class="modal-overlay" id="previewModal">
+    <div class="modal-content" style="background:transparent;padding:0;border:none;">
+      <button class="modal-close" id="previewModalClose" style="position:absolute;top:-50px;right:0;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <img id="previewModalImage" style="max-width:85vw;max-height:80vh;object-fit:contain;border-radius:12px;box-shadow:var(--shadow-lg);">
+    </div>
+  </div>
+
+  <!-- Crop Modal -->
+  <div class="modal-overlay" id="cropModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">裁剪图片</div>
+        <button class="modal-close" id="cropCloseBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="cropImageContainer"></div>
+      <div class="modal-actions">
+        <button class="btn modal-btn-cancel" id="cropCancelBtn">取消</button>
+        <button class="btn btn-primary" id="cropConfirmBtn">确认裁剪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cropper.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <script>
+    // ==================== State ====================
+    const files = [];
+    const pages = [{ id: 1, elements: [] }];
+    let currentPageId = 1;
+    let draggedFileIndex = null;
+    let currentCropper = null;
+    let currentCropIndex = -1;
+    let currentCropFileIndex = -1;
+
+    // ==================== Utils ====================
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function getPxPerMm() {
+      const canvas = document.getElementById(`pageCanvas_${currentPageId}`);
+      return canvas ? canvas.offsetWidth / 210 : 3.78;
+    }
+
+    // ==================== File Handling ====================
+    document.getElementById('uploadZone').onclick = () => {
+      document.getElementById('fileInput').click();
+    };
+
+    document.getElementById('uploadZone').ondragover = (e) => {
+      e.preventDefault();
+      e.currentTarget.classList.add('dragover');
+    };
+
+    document.getElementById('uploadZone').ondragleave = (e) => {
+      e.currentTarget.classList.remove('dragover');
+    };
+
+    document.getElementById('uploadZone').ondrop = (e) => {
+      e.preventDefault();
+      e.currentTarget.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    };
+
+    document.getElementById('fileInput').onchange = (e) => {
+      handleFiles(e.target.files);
+      e.target.value = '';
+    };
+
+    async function handleFiles(fileList) {
+      for (const file of Array.from(fileList)) {
+        try {
+          const images = await fileToImages(file);
+          for (let i = 0; i < images.length; i++) {
+            const pageLabel = images.length > 1 ? `_p${i + 1}` : '';
+            files.push({
+              id: generateId(),
+              file,
+              name: file.name.replace(/\.[^.]+$/, '') + pageLabel,
+              type: file.type,
+              previewUrl: images[i],
+              rotation: 0,
+              croppedBlob: null,
+              pageIndices: []
+            });
+          }
+        } catch (err) {
+          console.error('Error processing file:', file.name, err);
+          alert(`处理文件失败: ${file.name}`);
+        }
+      }
+      updateUI();
+    }
+
+    async function fileToImages(file) {
+      if (file.type === 'application/pdf') {
+        return await pdfToImages(file);
+      } else {
+        // Convert image to data URL using canvas
+        return [await imageToDataUrl(file)];
+      }
+    }
+
+    async function imageToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function pdfToImages(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const images = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({
+          canvasContext: canvas.getContext('2d'),
+          viewport
+        }).promise;
+        images.push(canvas.toDataURL('image/png'));
+      }
+
+      return images;
+    }
+
+    // ==================== UI Updates ====================
+    function updateUI() {
+      updateFileList();
+      renderPage(currentPageId);
+      renderPageTabs();
+      renderPreview();
+      updateSaveButton();
+    }
+
+    function updateFileList() {
+      const fileList = document.getElementById('fileList');
+      const fileCount = document.getElementById('fileCount');
+      fileCount.textContent = files.length;
+
+      if (files.length === 0) {
+        fileList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>暂无文件</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Check which files are on canvas
+      const filesOnCanvas = new Set();
+      pages.forEach(page => {
+        page.elements.forEach(el => {
+          filesOnCanvas.add(el.fileIndex);
+        });
+      });
+
+      fileList.innerHTML = files.map((f, i) => `
+        <div class="file-item ${filesOnCanvas.has(i) ? 'on-canvas' : ''}"
+             draggable="true" data-index="${i}">
+          <div class="file-thumb" data-preview="${i}">
+            <img src="${f.previewUrl}" alt="">
+          </div>
+          <div class="file-info">
+            <input type="text" class="file-name-input" value="${f.name}" data-index="${i}">
+            <div class="file-meta">${f.rotation ? f.rotation + '°' : '普通'}</div>
+          </div>
+          <div class="file-actions">
+            <button class="btn-icon rotate" data-index="${i}" title="旋转90°">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button class="btn-icon crop" data-index="${i}" title="裁剪">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="M18 6a3 3 0 0 0-3 3v0"/><path d="M18 15v3a3 3 0 0 1-3 3H6"/></svg>
+            </button>
+            <button class="btn-icon delete" data-index="${i}" title="删除">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      // File item drag
+      fileList.querySelectorAll('.file-item').forEach(item => {
+        item.ondragstart = (e) => {
+          draggedFileIndex = parseInt(item.dataset.index);
+          item.classList.add('dragging');
+        };
+        item.ondragend = (e) => {
+          item.classList.remove('dragging');
+          draggedFileIndex = null;
+        };
+      });
+
+      // File thumbnail preview click
+      fileList.querySelectorAll('.file-thumb').forEach(thumb => {
+        thumb.onclick = (e) => {
+          if (e.target.classList.contains('file-name-input')) return;
+          const idx = parseInt(thumb.dataset.preview);
+          openFilePreview(idx);
+        };
+      });
+
+      // File name editing - stop propagation to prevent triggering drag
+      fileList.querySelectorAll('.file-name-input').forEach(input => {
+        input.onclick = (e) => e.stopPropagation();
+        input.onchange = (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          files[idx].name = e.target.value;
+        };
+      });
+
+      // File actions
+      fileList.querySelectorAll('.btn-icon.rotate').forEach(btn => {
+        btn.onclick = () => rotateFile(parseInt(btn.dataset.index));
+      });
+      fileList.querySelectorAll('.btn-icon.crop').forEach(btn => {
+        btn.onclick = () => openCropModalFromFile(parseInt(btn.dataset.index));
+      });
+      fileList.querySelectorAll('.btn-icon.delete').forEach(btn => {
+        btn.onclick = () => deleteFile(parseInt(btn.dataset.index));
+      });
+    }
+
+    function updateSaveButton() {
+      const saveBtn = document.getElementById('saveBtn');
+      const hasElements = pages.some(p => p.elements.length > 0);
+      saveBtn.disabled = !hasElements;
+    }
+
+    // ==================== Page Management ====================
+    function renderPage(pageId) {
+      const page = pages.find(p => p.id === pageId);
+      const canvas = document.getElementById(`pageCanvas_${pageId}`);
+      if (!page || !canvas) return;
+
+      canvas.innerHTML = page.elements.map(el => {
+        const file = files[el.fileIndex];
+        if (!file) return '';
+        return `
+          <div class="canvas-element"
+               data-element-id="${el.id}"
+               style="left:${el.x}mm;top:${el.y}mm;width:${el.width}mm;height:${el.height}mm;transform:rotate(${el.rotation || 0}deg)">
+            <img src="${file.previewUrl}" alt="">
+            <div class="element-name">${el.name}</div>
+            <div class="element-delete" data-element-id="${el.id}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+            <div class="rotate-handle" data-element-id="${el.id}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </div>
+            <div class="resize-handle" data-element-id="${el.id}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13 16 7 16"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Attach event handlers
+      canvas.querySelectorAll('.canvas-element').forEach(el => {
+        setupElementDrag(el);
+        setupElementRotate(el);
+        setupElementDelete(el);
+        setupElementResize(el);
+      });
+
+      // Canvas drop zone
+      canvas.ondragover = (e) => e.preventDefault();
+      canvas.ondrop = (e) => {
+        e.preventDefault();
+        if (draggedFileIndex === null) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const pxPerMm = rect.width / 210;
+        const x = (e.clientX - rect.left) / pxPerMm - 30;
+        const y = (e.clientY - rect.top) / pxPerMm - 22;
+
+        const file = files[draggedFileIndex];
+        const img = new Image();
+        img.src = file.previewUrl;
+        img.onload = () => {
+          const aspectRatio = img.width / img.height;
+          const width = 60;
+          const height = width / aspectRatio;
+
+          page.elements.push({
+            id: generateId(),
+            fileIndex: draggedFileIndex,
+            x: Math.max(10, Math.min(x, 200)),
+            y: Math.max(10, Math.min(y, 280)),
+            width: Math.min(width, 180),
+            height: Math.min(height, 260),
+            rotation: file.rotation || 0,
+            name: file.name
+          });
+
+          draggedFileIndex = null;
+          renderPage(pageId);
+          renderPreview();
+          updateFileList();
+          updateSaveButton();
+        };
+      };
+
+      // Show active canvas
+      document.querySelectorAll('.page-canvas').forEach(c => c.style.display = 'none');
+      canvas.style.display = 'block';
+    }
+
+    function renderPageTabs() {
+      const tabs = document.getElementById('pageTabs');
+      tabs.innerHTML = pages.map(p => `
+        <div class="page-tab ${p.id === currentPageId ? 'active' : ''}" data-page="${p.id}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+          <span>${p.id}</span>
+          ${pages.length > 1 ? `<button class="page-tab-delete" data-page="${p.id}" title="删除页面">×</button>` : ''}
+        </div>
+      `).join('') + '<div class="page-tab-add" id="addPageTabBtn">+</div>';
+
+      tabs.querySelectorAll('.page-tab').forEach(tab => {
+        tab.onclick = (e) => {
+          if (e.target.classList.contains('page-tab-delete')) return;
+          currentPageId = parseInt(tab.dataset.page);
+          renderPageTabs();
+          renderPage(currentPageId);
+          renderPreview();
+        };
+      });
+
+      tabs.querySelectorAll('.page-tab-delete').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const pageId = parseInt(btn.dataset.page);
+          deletePage(pageId);
+        };
+      });
+
+      document.getElementById('addPageTabBtn').onclick = addNewPage;
+    }
+
+    function deletePage(pageId) {
+      if (pages.length <= 1) return;
+
+      // Find index to delete
+      const deleteIndex = pages.findIndex(p => p.id === pageId);
+      if (deleteIndex === -1) return;
+
+      // Remove canvas element
+      const canvasEl = document.getElementById(`pageCanvas_${pageId}`);
+      if (canvasEl) canvasEl.remove();
+
+      // Remove from pages array using splice
+      pages.splice(deleteIndex, 1);
+
+      // If deleted current page, switch to previous (or first)
+      if (currentPageId === pageId) {
+        const newIndex = Math.max(0, deleteIndex - 1);
+        currentPageId = pages[newIndex].id;
+      }
+
+      // Rebuild all canvas elements to ensure consistency
+      rebuildAllCanvases();
+
+      renderPageTabs();
+      renderPage(currentPageId);
+      renderPreview();
+    }
+
+    function rebuildAllCanvases() {
+      const container = document.getElementById('canvasContainer');
+      // Remove all existing canvases
+      container.innerHTML = '';
+      // Recreate canvases for all pages
+      pages.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'page-canvas';
+        div.id = `pageCanvas_${p.id}`;
+        div.dataset.page = p.id;
+        div.style.display = 'none';
+        container.appendChild(div);
+      });
+    }
+
+    function addNewPage() {
+      if (pages.length >= 10) {
+        alert('最多支持10页');
+        return;
+      }
+      // Find max ID and add 1 to avoid conflicts
+      const maxId = pages.reduce((max, p) => Math.max(max, p.id), 0);
+      const newId = maxId + 1;
+      pages.push({ id: newId, elements: [] });
+
+      const container = document.getElementById('canvasContainer');
+      const div = document.createElement('div');
+      div.className = 'page-canvas';
+      div.id = `pageCanvas_${newId}`;
+      div.dataset.page = newId;
+      div.style.display = 'none';
+      container.appendChild(div);
+
+      currentPageId = newId;
+      renderPageTabs();
+      renderPage(currentPageId);
+      renderPreview();
+    }
+
+    document.getElementById('addPageBtn').onclick = addNewPage;
+
+    function renderPreview() {
+      const panel = document.getElementById('previewList');
+      const scale = 160 / 210; // 160px width represents 210mm
+
+      panel.innerHTML = pages.map(p => `
+        <div class="preview-page ${p.id === currentPageId ? 'active' : ''}" data-page="${p.id}">
+          <div class="preview-canvas">
+            ${p.elements.length === 0 ? '<span class="preview-empty">EMPTY</span>' : ''}
+            ${p.elements.map(el => {
+              const file = files[el.fileIndex];
+              if (!file) return '';
+              return `<img src="${file.previewUrl}" style="left:${el.x * scale}px;top:${el.y * scale}px;width:${el.width * scale}px;height:${el.height * scale}px;transform:rotate(${el.rotation || 0}deg)">`;
+            }).join('')}
+          </div>
+          <div class="preview-label">PAGE ${p.id} · ${p.elements.length}</div>
+        </div>
+      `).join('');
+
+      panel.querySelectorAll('.preview-page').forEach(pg => {
+        pg.onclick = () => {
+          currentPageId = parseInt(pg.dataset.page);
+          renderPageTabs();
+          renderPage(currentPageId);
+          renderPreview();
+        };
+      });
+    }
+
+    // ==================== Element Interactions ====================
+    function setupElementDrag(el) {
+      let startX, startY, origX, origY;
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('element-delete') ||
+            e.target.classList.contains('rotate-handle')) return;
+
+        e.preventDefault();
+        const pageId = parseInt(el.closest('.page-canvas').dataset.page);
+        const elData = findElement(el.dataset.elementId, pageId);
+        origX = elData.x;
+        origY = elData.y;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        // Select element
+        document.querySelectorAll('.canvas-element').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+
+        const onMove = (e) => {
+          const dx = (e.clientX - startX) / getPxPerMm();
+          const dy = (e.clientY - startY) / getPxPerMm();
+          el.style.left = `${origX + dx}mm`;
+          el.style.top = `${origY + dy}mm`;
+        };
+
+        const onUp = (e) => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+
+          const dx = (e.clientX - startX) / getPxPerMm();
+          const dy = (e.clientY - startY) / getPxPerMm();
+          elData.x = Math.max(0, Math.min(origX + dx, 210 - elData.width));
+          elData.y = Math.max(0, Math.min(origY + dy, 297 - elData.height));
+          renderPreview();
+          updateFileList();
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    function setupElementRotate(el) {
+      const handle = el.querySelector('.rotate-handle');
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pageId = parseInt(el.closest('.page-canvas').dataset.page);
+        const elData = findElement(el.dataset.elementId, pageId);
+
+        elData.rotation = ((elData.rotation || 0) + 90) % 360;
+        el.style.transform = `rotate(${elData.rotation}deg)`;
+
+        // Update file rotation too
+        const file = files[elData.fileIndex];
+        file.rotation = elData.rotation;
+
+        renderPreview();
+        updateFileList();
+      });
+    }
+
+    function setupElementDelete(el) {
+      const handle = el.querySelector('.element-delete');
+      handle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pageId = parseInt(el.closest('.page-canvas').dataset.page);
+        const page = pages.find(p => p.id === pageId);
+        page.elements = page.elements.filter(elem => elem.id !== el.dataset.elementId);
+        renderPage(pageId);
+        renderPreview();
+        updateFileList();
+        updateSaveButton();
+      });
+    }
+
+    function setupElementResize(el) {
+      const handle = el.querySelector('.resize-handle');
+      let startX, startY, origWidth, origHeight, aspectRatio;
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pageId = parseInt(el.closest('.page-canvas').dataset.page);
+        const elData = findElement(el.dataset.elementId, pageId);
+
+        origWidth = elData.width;
+        origHeight = elData.height;
+        aspectRatio = origWidth / origHeight;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const onMove = (e) => {
+          const dx = (e.clientX - startX) / getPxPerMm();
+          const newWidth = Math.max(20, Math.min(origWidth + dx, 200));
+          const newHeight = newWidth / aspectRatio;
+          el.style.width = `${newWidth}mm`;
+          el.style.height = `${newHeight}mm`;
+        };
+
+        const onUp = (e) => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+
+          const dx = (e.clientX - startX) / getPxPerMm();
+          const elData = findElement(el.dataset.elementId, pageId);
+          const newWidth = Math.max(20, Math.min(origWidth + dx, 200));
+          elData.width = newWidth;
+          elData.height = newWidth / aspectRatio;
+          renderPreview();
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    function findElement(id, pageId) {
+      const page = pages.find(p => p.id === pageId);
+      return page.elements.find(el => el.id === id);
+    }
+
+    // ==================== File Operations ====================
+    function openFilePreview(index) {
+      const file = files[index];
+      const modal = document.getElementById('previewModal');
+      const img = document.getElementById('previewModalImage');
+      img.src = file.previewUrl;
+      modal.classList.add('active');
+    }
+
+    document.getElementById('previewModalClose').onclick = () => {
+      document.getElementById('previewModal').classList.remove('active');
+    };
+
+    document.getElementById('previewModal').onclick = (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('active');
+      }
+    };
+
+    function rotateFile(index) {
+      const file = files[index];
+      file.rotation = ((file.rotation || 0) + 90) % 360;
+      updateUI();
+    }
+
+    function deleteFile(index) {
+      const file = files[index];
+      if (file.previewUrl && file.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
+      files.splice(index, 1);
+      // Remove from pages
+      pages.forEach(page => {
+        page.elements = page.elements.filter(el => el.fileIndex !== index);
+        // Adjust indices
+        page.elements.forEach(el => {
+          if (el.fileIndex > index) el.fileIndex--;
+        });
+      });
+      updateUI();
+    }
+
+    // ==================== Crop Modal ====================
+    function openCropModalFromFile(fileIndex) {
+      currentCropFileIndex = fileIndex;
+      currentCropIndex = -1;
+      const file = files[fileIndex];
+      const modal = document.getElementById('cropModal');
+      const container = document.getElementById('cropImageContainer');
+
+      container.innerHTML = `<img id="cropImage" src="${file.previewUrl}">`;
+      modal.classList.add('active');
+
+      const img = document.getElementById('cropImage');
+      img.onload = () => {
+        if (currentCropper) currentCropper.destroy();
+        currentCropper = new Cropper(img, {
+          aspectRatio: NaN,
+          viewMode: 1,
+          dragMode: 'move',
+          guides: true,
+          center: true,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+        });
+      };
+    }
+
+    document.getElementById('cropCloseBtn').onclick = closeCropModal;
+    document.getElementById('cropCancelBtn').onclick = closeCropModal;
+
+    function closeCropModal() {
+      document.getElementById('cropModal').classList.remove('active');
+      if (currentCropper) {
+        currentCropper.destroy();
+        currentCropper = null;
+      }
+      currentCropFileIndex = -1;
+      currentCropIndex = -1;
+    }
+
+    document.getElementById('cropConfirmBtn').onclick = async () => {
+      if (!currentCropper) return;
+
+      const croppedCanvas = currentCropper.getCroppedCanvas({
+        maxWidth: 4096,
+        maxHeight: 4096,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+      });
+
+      const blob = await new Promise(resolve => croppedCanvas.toBlob(resolve, 'image/png'));
+      const url = URL.createObjectURL(blob);
+
+      const file = files[currentCropFileIndex];
+      if (file.previewUrl && file.previewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
+      file.previewUrl = url;
+      file.croppedBlob = blob;
+
+      closeCropModal();
+      updateUI();
+    };
+
+    // ==================== Print ====================
+    document.getElementById('printBtn').onclick = async () => {
+      const printWin = window.open('', '_blank');
+      if (!printWin) {
+        alert('请允许弹出窗口');
+        return;
+      }
+
+      // A4 in mm
+      const W = 210;
+      const H = 297;
+
+      // Helper: convert any URL to data URL using canvas
+      async function urlToDataUrl(url) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = () => {
+            console.warn('Failed to load image:', url);
+            resolve(url); // fallback
+          };
+          img.src = url;
+        });
+      }
+
+      // Build HTML with converted image URLs
+      let html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>打印</title>
+<style>
+@page { size: A4; margin: 0; }
+body { margin: 0; padding: 0; background: white; }
+.page { width: ${W}mm; height: ${H}mm; position: relative; page-break-after: always; overflow: hidden; background: white; }
+.page img { position: absolute; object-fit: contain; }
+.page .img-name { position: absolute; text-align: center; font-family: Arial, sans-serif; font-size: 3mm; color: #333; }
+</style>
+</head>
+<body>
+`;
+
+      // Pre-load all images first
+      const imageCache = {};
+      const loadPromises = [];
+
+      for (const page of pages) {
+        for (const el of page.elements) {
+          const file = files[el.fileIndex];
+          if (!file || imageCache[file.previewUrl]) continue;
+          imageCache[file.previewUrl] = true;
+
+          loadPromises.push(new Promise((resolve) => {
+            const img = new Image();
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = file.previewUrl;
+          }));
+        }
+      }
+
+      await Promise.all(loadPromises);
+
+      // Now build HTML with explicit dimensions
+      for (const page of pages) {
+        html += `<div class="page">`;
+        for (const el of page.elements) {
+          const file = files[el.fileIndex];
+          if (!file) continue;
+          const nameBottom = el.y + el.height + 2; // 2mm below the image
+          html += `<img src="${file.previewUrl}" width="${el.width * 3.78}" height="${el.height * 3.78}" style="position:absolute;left:${el.x}mm;top:${el.y}mm;width:${el.width}mm;height:${el.height}mm;transform:rotate(${el.rotation || 0}deg)">`;
+          html += `<div class="img-name" style="left:${el.x}mm;top:${nameBottom}mm;width:${el.width}mm;">${el.name}</div>`;
+        }
+        html += `</div>`;
+      }
+
+      html += `</body></html>`;
+
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+
+      // Wait for render
+      await new Promise(r => setTimeout(r, 1000));
+
+      printWin.print();
+    };
+
+    // ==================== Save ====================
+    document.getElementById('saveBtn').onclick = async () => {
+      try {
+        const dirHandle = await window.showDirectoryPicker();
+        let savedCount = 0;
+
+        for (const page of pages) {
+          for (const el of page.elements) {
+            const file = files[el.fileIndex];
+            // 使用文件名，确保持有 .png 扩展名
+            let fileName = file.name;
+            if (!fileName.toLowerCase().endsWith('.png')) {
+              fileName = fileName + '.png';
+            }
+
+            let blob;
+            if (file.croppedBlob) {
+              blob = file.croppedBlob;
+            } else {
+              blob = await urlToBlob(file.previewUrl);
+            }
+
+            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+
+            savedCount++;
+          }
+        }
+
+        alert(`保存成功！共保存 ${savedCount} 个文件`);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          alert('保存失败: ' + err.message);
+        }
+      }
+    };
+
+    async function urlToBlob(url) {
+      const response = await fetch(url);
+      return await response.blob();
+    }
+
+    // ==================== Init ====================
+    renderPageTabs();
+    renderPage(currentPageId);
+    renderPreview();
+
+    // Browser compatibility
+    if (!('showDirectoryPicker' in window)) {
+      document.body.innerHTML = `
+        <div style="padding:60px;text-align:center;">
+          <h2>浏览器不支持</h2>
+          <p>请使用 Chrome 112+ 或 Edge 92+ 打开此页面</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
