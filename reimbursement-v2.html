@@ -1786,9 +1786,11 @@ body { margin: 0; padding: 0; background: white; }
         for (const el of page.elements) {
           const file = files[el.fileIndex];
           if (!file) continue;
-          const nameBottom = el.y + el.height + 2; // 2mm below the image
+          // Calculate name position, ensure it stays within page bounds (297mm - 5mm margin = 292mm)
+          const nameBottom = Math.min(el.y + el.height + 2, 292);
+          const displayName = (el.name && el.name.trim()) ? el.name.trim() : '未命名';
           html += `<img src="${file.previewUrl}" width="${el.width * 3.78}" height="${el.height * 3.78}" style="position:absolute;left:${el.x}mm;top:${el.y}mm;width:${el.width}mm;height:${el.height}mm;transform:rotate(${el.rotation || 0}deg)">`;
-          html += `<div class="img-name" style="left:${el.x}mm;top:${nameBottom}mm;width:${el.width}mm;">${el.name}</div>`;
+          html += `<div class="img-name" style="left:${el.x}mm;top:${nameBottom}mm;width:${el.width}mm;">${displayName}</div>`;
         }
         html += `</div>`;
       }
